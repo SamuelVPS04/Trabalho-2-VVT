@@ -1,6 +1,7 @@
--- Schema de criação do banco de dados e tabela para o Trabalho 2
--- Banco: db_produtos
+-- Schema de criação do banco de dados e tabela para o Trabalho 3
+-- Banco: db_vvt
 
+DROP DATABASE IF EXISTS db_vvt;
 CREATE DATABASE db_vvt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE db_vvt;
 
