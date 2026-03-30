@@ -23,5 +23,5 @@ INSERT INTO codigos_sequenciais (codigo, sec, Grupo, Tipo_Alimento, Pais) VALUES
     ('BRG0001A', 1, 'G', 'A', 'BR'),
     ('BRC0002A', 2, 'C', 'A', 'BR'),
     ('BRD0002K', 2, 'D', 'K', 'BR'),
-    ('BRF0002A', 2, 'F', 'A', 'BR'),s
+    ('BRF0002A', 2, 'F', 'A', 'BR'),
     ('BRC0003C', 3, 'C', 'C', 'BR');
