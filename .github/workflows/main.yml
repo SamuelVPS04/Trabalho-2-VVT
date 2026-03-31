@@ -16,34 +16,34 @@ jobs:
       mysql:
         image: mysql:8.0
         env:
-          MYSQL_ROOT_PASSWORD: root
-          MYSQL_DATABASE: db_vvt
+          MYSQL_ROOT_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+          MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
         ports:
           - 3306:3306
         options: >-
-          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -p${{ secrets.MYSQL_PASSWORD }}"
           --health-interval=10s
           --health-timeout=5s
           --health-retries=20
 
     env:
-      MYSQL_HOST: 127.0.0.1
-      MYSQL_PORT: 3306
-      MYSQL_USER: root
-      MYSQL_PASSWORD: root
-      MYSQL_DATABASE: db_vvt
+      MYSQL_HOST: ${{ secrets.MYSQL_HOST }}
+      MYSQL_PORT: ${{ secrets.MYSQL_PORT }}
+      MYSQL_USER: ${{ secrets.MYSQL_USER }}
+      MYSQL_PASSWORD: ${{ secrets.MYSQL_PASSWORD }}
+      MYSQL_DATABASE: ${{ secrets.MYSQL_DATABASE }}
 
     steps:
       - name: Baixar código
-        uses: actions/checkout@v4
-
-      - name: Configurar Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: "pip"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git clone --depth 1 --branch "$GITHUB_REF_NAME" "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" repo
+          cd repo
+          echo "PROJECT_DIR=$PWD" >> "$GITHUB_ENV"
 
       - name: Instalar cliente MySQL e dependências Python
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           sudo apt-get update
           sudo apt-get install -y default-mysql-client
@@ -51,6 +51,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Verificar arquivos do projeto
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           pwd
           ls -la
@@ -61,9 +62,11 @@ jobs:
           test -f test_integracao_mysql.py
 
       - name: Verificar cliente MySQL instalado
+        working-directory: ${{ env.PROJECT_DIR }}
         run: mysql --version
 
       - name: Aguardar MySQL ficar disponível
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           for i in {1..30}; do
             if mysqladmin ping --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent; then
@@ -76,14 +79,17 @@ jobs:
           exit 1
 
       - name: Validar acesso ao servidor MySQL
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           mysql --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "SHOW DATABASES;"
 
       - name: Aplicar schema
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           mysql --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" < schema.sql
 
       - name: Validar estrutura criada
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           mysql --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "
             USE $MYSQL_DATABASE;
@@ -93,9 +99,11 @@ jobs:
           "
 
       - name: Executar testes automatizados com pytest
+        working-directory: ${{ env.PROJECT_DIR }}
         run: python -m pytest -q
 
       - name: Executar inserção real e query de verificação
+        working-directory: ${{ env.PROJECT_DIR }}
         run: |
           python app.py
           mysql --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "
