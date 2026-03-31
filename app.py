@@ -30,6 +30,18 @@ def _configuracao_mysql(
 
 
 def inicializar_banco(config: dict[str, str | int | bool]) -> None:
+    registros_iniciais = [
+        ("BRC0001A", 1, "C", "A", "BR"),
+        ("BRD0001I", 1, "D", "I", "BR"),
+        ("BRA0001K", 1, "A", "K", "BR"),
+        ("BRF0001F", 1, "F", "F", "BR"),
+        ("BRG0001A", 1, "G", "A", "BR"),
+        ("BRC0002A", 2, "C", "A", "BR"),
+        ("BRD0002K", 2, "D", "K", "BR"),
+        ("BRF0002A", 2, "F", "A", "BR"),
+        ("BRC0003C", 3, "C", "C", "BR"),
+    ]
+
     database = str(config["database"])
     admin_config = {key: value for key, value in config.items() if key != "database"}
     conn = mysql.connector.connect(**admin_config)
@@ -54,6 +66,16 @@ def inicializar_banco(config: dict[str, str | int | bool]) -> None:
             ) ENGINE=InnoDB
             """
         )
+        cursor.execute("SELECT COUNT(*) FROM codigos_sequenciais")
+        total_registros = int(cursor.fetchone()[0])
+        if total_registros == 0:
+            cursor.executemany(
+                """
+                INSERT INTO codigos_sequenciais (codigo, sec, Grupo, Tipo_Alimento, Pais)
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                registros_iniciais,
+            )
         conn.commit()
     finally:
         cursor.close()

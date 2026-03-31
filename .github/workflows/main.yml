@@ -2,14 +2,15 @@ name: CI-CD VV&T
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
   pull_request:
-    branches: [main]
+    branches: [main, master]
   workflow_dispatch:
 
 jobs:
   testes:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
 
     services:
       mysql:
@@ -40,6 +41,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
 
       - name: Instalar cliente MySQL e dependências Python
         run: |
@@ -55,35 +57,35 @@ jobs:
           test -f schema.sql
           test -f requirements.txt
           test -f app.py
-          echo "===== Conteúdo inicial de schema.sql ====="
-          sed -n '1,120p' schema.sql
+          test -f test_gerador_codigo.py
+          test -f test_integracao_mysql.py
+
+      - name: Verificar cliente MySQL instalado
+        run: mysql --version
 
       - name: Aguardar MySQL ficar disponível
         run: |
           for i in {1..30}; do
-            mysqladmin ping -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent && break
-            echo "Aguardando MySQL..."
+            if mysqladmin ping --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" --silent; then
+              exit 0
+            fi
+            echo "Aguardando MySQL... tentativa $i/30"
             sleep 2
           done
+          echo "MySQL não ficou disponível a tempo."
+          exit 1
 
-      - name: Criar banco e tabela automaticamente
+      - name: Validar acesso ao servidor MySQL
         run: |
-          mysql -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" < schema.sql
+          mysql --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "SHOW DATABASES;"
 
-      - name: Debug após aplicar schema
+      - name: Aplicar schema
         run: |
-          echo "===== Bancos disponíveis ====="
-          mysql -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "SHOW DATABASES;"
-          echo "===== Tabelas em $MYSQL_DATABASE ====="
-          mysql -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "
-            USE $MYSQL_DATABASE;
-            SHOW TABLES;
-            SELECT DATABASE() AS banco_atual;
-          "
+          mysql --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" < schema.sql
 
       - name: Validar estrutura criada
         run: |
-          mysql -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "
+          mysql --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "
             USE $MYSQL_DATABASE;
             SHOW TABLES;
             DESCRIBE codigos_sequenciais;
@@ -91,13 +93,12 @@ jobs:
           "
 
       - name: Executar testes automatizados com pytest
-        run: |
-          pytest -q
+        run: python -m pytest -q
 
       - name: Executar inserção real e query de verificação
         run: |
           python app.py
-          mysql -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "
+          mysql --protocol=tcp -h"$MYSQL_HOST" -P"$MYSQL_PORT" -u"$MYSQL_USER" -p"$MYSQL_PASSWORD" -e "
             USE $MYSQL_DATABASE;
             SELECT id, codigo, sec, Grupo, Tipo_Alimento, Pais
             FROM codigos_sequenciais

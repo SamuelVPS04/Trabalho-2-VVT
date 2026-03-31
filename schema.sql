@@ -1,11 +1,10 @@
 -- Schema de criação do banco de dados e tabela para o Trabalho 3
 -- Banco: db_vvt
 
-DROP DATABASE IF EXISTS db_vvt;
-CREATE DATABASE db_vvt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE DATABASE IF NOT EXISTS db_vvt CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE db_vvt;
 
-CREATE TABLE codigos_sequenciais (
+CREATE TABLE IF NOT EXISTS codigos_sequenciais (
     id INT AUTO_INCREMENT PRIMARY KEY,
     codigo VARCHAR(8) NOT NULL UNIQUE,
     sec INT NOT NULL,
@@ -16,7 +15,7 @@ CREATE TABLE codigos_sequenciais (
     CONSTRAINT uq_pais_grupo_sec UNIQUE (Pais, Grupo, sec)
 ) ENGINE=InnoDB;
 
-INSERT INTO codigos_sequenciais (codigo, sec, Grupo, Tipo_Alimento, Pais) VALUES
+INSERT IGNORE INTO codigos_sequenciais (codigo, sec, Grupo, Tipo_Alimento, Pais) VALUES
     ('BRC0001A', 1, 'C', 'A', 'BR'),
     ('BRD0001I', 1, 'D', 'I', 'BR'),
     ('BRA0001K', 1, 'A', 'K', 'BR'),
