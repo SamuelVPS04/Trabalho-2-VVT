@@ -45,7 +45,7 @@ Este projeto implementa uma solução completa para o trabalho de VV&T com foco 
    export MYSQL_HOST=localhost
    export MYSQL_USER=root
    export MYSQL_PASSWORD=sua_senha
-   export MYSQL_DATABASE=db_produtos
+   export MYSQL_DATABASE=db_vvt
    ```
 
 ## Como Executar

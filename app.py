@@ -5,10 +5,59 @@ from typing import Optional
 
 from dotenv import load_dotenv
 import mysql.connector
+from mysql.connector import errorcode
 from mysql.connector.connection import MySQLConnection
 from mysql.connector.cursor import MySQLCursor
 
 load_dotenv()
+
+
+def _configuracao_mysql(
+    host: Optional[str] = None,
+    user: Optional[str] = None,
+    password: Optional[str] = None,
+    database: Optional[str] = None,
+    port: Optional[int] = None,
+) -> dict[str, str | int | bool]:
+    return {
+        "host": host or os.getenv("MYSQL_HOST", "localhost"),
+        "user": user or os.getenv("MYSQL_USER", "root"),
+        "password": password if password is not None else os.getenv("MYSQL_PASSWORD", ""),
+        "database": database or os.getenv("MYSQL_DATABASE", "db_vvt"),
+        "port": port or int(os.getenv("MYSQL_PORT", "3306")),
+        "autocommit": False,
+    }
+
+
+def inicializar_banco(config: dict[str, str | int | bool]) -> None:
+    database = str(config["database"])
+    admin_config = {key: value for key, value in config.items() if key != "database"}
+    conn = mysql.connector.connect(**admin_config)
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            f"CREATE DATABASE IF NOT EXISTS `{database}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+        )
+        cursor.execute(f"USE `{database}`")
+        cursor.execute(
+            """
+            CREATE TABLE IF NOT EXISTS codigos_sequenciais (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                codigo VARCHAR(8) NOT NULL UNIQUE,
+                sec INT NOT NULL,
+                Grupo CHAR(1) NOT NULL,
+                Tipo_Alimento CHAR(1) NOT NULL,
+                Pais CHAR(2) NOT NULL,
+                CONSTRAINT chk_sec_positivo CHECK (sec > 0),
+                CONSTRAINT uq_pais_grupo_sec UNIQUE (Pais, Grupo, sec)
+            ) ENGINE=InnoDB
+            """
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
 
 
 def conectar_mysql(
@@ -18,14 +67,16 @@ def conectar_mysql(
     database: Optional[str] = None,
     port: Optional[int] = None,
 ) -> MySQLConnection:
-    return mysql.connector.connect(
-        host=host or os.getenv("MYSQL_HOST", "localhost"),
-        user=user or os.getenv("MYSQL_USER", "root"),
-        password=password if password is not None else os.getenv("MYSQL_PASSWORD", ""),
-        database=database or os.getenv("MYSQL_DATABASE", "db_vvt"),
-        port=port or int(os.getenv("MYSQL_PORT", "3306")),
-        autocommit=False,
-    )
+    config = _configuracao_mysql(host, user, password, database, port)
+
+    try:
+        return mysql.connector.connect(**config)
+    except mysql.connector.Error as exc:
+        if exc.errno != errorcode.ER_BAD_DB_ERROR:
+            raise
+
+        inicializar_banco(config)
+        return mysql.connector.connect(**config)
 
 
 def normalizar_parametros(grupo: str, tipo_alimento: str, pais: str) -> tuple[str, str, str]:
